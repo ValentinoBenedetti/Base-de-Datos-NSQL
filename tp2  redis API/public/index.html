@@ -1,0 +1,56 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+    <meta charset="UTF-8">
+    <title>Mando Rent - NoSQL</title>
+    <style>
+        body { font-family: 'Segoe UI', Tahoma, Geneva, Verdana, sans-serif; background: #0b0e14; color: #e2e8f0; padding: 40px; }
+        h1 { text-align: center; color: #63b3ed; text-transform: uppercase; letter-spacing: 2px; }
+        .grid { display: grid; grid-template-columns: repeat(auto-fill, minmax(250px, 1fr)); gap: 20px; margin-top: 30px; }
+        .card { padding: 20px; border-radius: 12px; background: #1a202c; border: 1px solid #2d3748; transition: 0.3s; }
+        .disponible { border-left: 8px solid #48bb78; }
+        .reservado { border-left: 8px solid #ecc94b; }
+        .alquilado { border-left: 8px solid #f56565; opacity: 0.7; }
+        button { width: 100%; margin-top: 15px; padding: 10px; border: none; border-radius: 5px; cursor: pointer; font-weight: bold; }
+        .btn-res { background: #48bb78; color: white; }
+        .btn-pay { background: #ecc94b; color: #1a202c; }
+        small { color: #a0aec0; }
+    </style>
+</head>
+<body>
+    <h1>The Mandalorian - Alquileres</h1>
+    <div id="lista" class="grid"></div>
+
+    <script>
+        async function cargar() {
+            const res = await fetch('/api/capitulos');
+            const datos = await res.json();
+            const div = document.getElementById('lista');
+            div.innerHTML = datos.map(c => `
+                <div class="card ${c.estado}">
+                    <small>Temporada ${c.s}</small>
+                    <h3>${c.t}</h3>
+                    <p>Estado: <strong>${c.estado.toUpperCase()}</strong></p>
+                    ${c.estado === 'disponible' ? `<button class="btn-res" onclick="reservar(${c.id})">Reservar (4 min)</button>` : ''}
+                    ${c.estado === 'reservado' ? `<button class="btn-pay" onclick="pagar(${c.id})">Confirmar Pago ($500)</button>` : ''}
+                    ${c.estado === 'alquilado' ? `<p>⏳ Alquilado por 24hs</p>` : ''}
+                </div>
+            `).join('');
+        }
+        async function reservar(id) {
+            await fetch(`/api/reservar/${id}`, { method: 'POST' });
+            cargar();
+        }
+        async function pagar(id) {
+            await fetch(`/api/confirmar`, {
+                method: 'POST',
+                headers: {'Content-Type': 'application/json'},
+                body: JSON.stringify({id, precio: 500})
+            });
+            cargar();
+        }
+        cargar();
+        setInterval(cargar, 5000); // Actualiza cada 5 seg
+    </script>
+</body>
+</html>
