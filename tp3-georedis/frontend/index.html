@@ -1,0 +1,170 @@
+<!DOCTYPE html>
+<html lang="es">
+
+<head>
+    <meta charset="UTF-8">
+    <title>Turismo Geo - Redis</title>
+    <style>
+        body {
+            font-family: 'Segoe UI', sans-serif;
+            background: #121212;
+            color: white;
+            padding: 40px;
+        }
+
+        .container {
+            max-width: 600px;
+            margin: auto;
+        }
+
+        input,
+        select,
+        button {
+            padding: 10px;
+            width: 100%;
+            margin-bottom: 10px;
+            border-radius: 5px;
+            border: none;
+            box-sizing: border-box;
+        }
+
+        button {
+            font-weight: bold;
+            cursor: pointer;
+        }
+
+        /* Estilos de las tarjetas */
+        .panel {
+            background: #1e1e1e;
+            padding: 20px;
+            border-radius: 8px;
+            margin-bottom: 20px;
+        }
+
+        .panel-agregar {
+            border-left: 5px solid #ff3860;
+        }
+
+        .panel-buscar {
+            border-left: 5px solid #00d1b2;
+        }
+
+        .card {
+            background: #2a2a2a;
+            padding: 15px;
+            margin-top: 10px;
+            border-radius: 8px;
+            display: flex;
+            justify-content: space-between;
+        }
+
+        /* Botones */
+        .btn-agregar {
+            background: #ff3860;
+            color: white;
+        }
+
+        .btn-buscar {
+            background: #00d1b2;
+            color: white;
+        }
+
+        .distancia {
+            color: #00d1b2;
+            font-weight: bold;
+        }
+
+        #mensaje {
+            color: #ff3860;
+            font-weight: bold;
+            text-align: center;
+        }
+    </style>
+</head>
+
+<body>
+    <div class="container">
+        <h1>📍 Turismo Geo-Redis</h1>
+
+        <div class="panel panel-agregar">
+            <h2>➕ Agregar Nuevo Lugar</h2>
+            <select id="nuevo_grupo">
+                <option value="cervecerias">🍻 Cervecerías</option>
+                <option value="universidades">🎓 Universidades</option>
+                <option value="farmacias">💊 Farmacias</option>
+                <option value="emergencias">🚑 Emergencias</option>
+                <option value="supermercados">🛒 Supermercados</option>
+            </select>
+            <input type="text" id="nuevo_nombre" placeholder="Nombre del lugar (Ej: Burger King)">
+            <input type="number" id="nuevo_lon" step="any" placeholder="Longitud (Ej: -58.2315)">
+            <input type="number" id="nuevo_lat" step="any" placeholder="Latitud (Ej: -32.4820)">
+            <button class="btn-agregar" onclick="agregarLugar()">Guardar en Redis</button>
+            <p id="mensaje"></p>
+        </div>
+
+        <div class="panel panel-buscar">
+            <h2>🔍 Buscar Cercanos (5km)</h2>
+            <p><small>Tu ubicación (Centro CdU): Lon -58.2335 | Lat -32.4835</small></p>
+            <select id="grupo_buscar">
+                <option value="cervecerias">🍻 Cervecerías</option>
+                <option value="universidades">🎓 Universidades</option>
+                <option value="farmacias">💊 Farmacias</option>
+                <option value="emergencias">🚑 Emergencias</option>
+                <option value="supermercados">🛒 Supermercados</option>
+            </select>
+            <button class="btn-buscar" onclick="buscarLugares()">Buscar</button>
+            <div id="resultados"></div>
+        </div>
+    </div>
+
+    <script>
+        // Función para el PUNTO 2 (Agregar)
+        async function agregarLugar() {
+            const grupo = document.getElementById('nuevo_grupo').value;
+            const nombre = document.getElementById('nuevo_nombre').value;
+            const lon = document.getElementById('nuevo_lon').value;
+            const lat = document.getElementById('nuevo_lat').value;
+
+            if (!nombre || !lon || !lat) {
+                document.getElementById('mensaje').innerText = "⚠️ Completá todos los campos.";
+                return;
+            }
+
+            const payload = { grupo, nombre, lon: parseFloat(lon), lat: parseFloat(lat) };
+
+            const res = await fetch('http://localhost:5000/agregar', {
+                method: 'POST',
+                headers: { 'Content-Type': 'application/json' },
+                body: JSON.stringify(payload)
+            });
+
+            if (res.ok) {
+                document.getElementById('mensaje').innerText = "✅ ¡Lugar guardado con éxito!";
+                document.getElementById('nuevo_nombre').value = ""; // Limpiar inputs
+                document.getElementById('nuevo_lon').value = "";
+                document.getElementById('nuevo_lat').value = "";
+                setTimeout(() => document.getElementById('mensaje').innerText = "", 3000);
+            }
+        }
+
+        // Función para el PUNTO 3 y 4 (Buscar)
+        async function buscarLugares() {
+            const grupo = document.getElementById('grupo_buscar').value;
+            const lon = -58.2335;
+            const lat = -32.4835;
+
+            const res = await fetch(`http://localhost:5000/buscar?grupo=${grupo}&lon=${lon}&lat=${lat}`);
+            const datos = await res.json();
+
+            const div = document.getElementById('resultados');
+            div.innerHTML = datos.length > 0 ? datos.map(l => `
+                <div class="card">
+                    <span>${l.nombre}</span>
+                    <span class="distancia">${l.distancia} km</span>
+                </div>
+            `).join('') : '<p>No se encontraron lugares a menos de 5km.</p>';
+        }
+    </script>
+</body>
+
+</html>
