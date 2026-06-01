@@ -1,0 +1,149 @@
+<!DOCTYPE html>
+<html lang="es">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>AeroPulse - NoSQL Airport Explorer</title>
+  
+  <!-- Google Fonts -->
+  <link rel="preconnect" href="https://fonts.googleapis.com">
+  <link rel="preconnect" href="https://fonts.gstatic.com" crossorigin>
+  <link href="https://fonts.googleapis.com/css2?family=Plus+Jakarta+Sans:wght@300;400;500;600;700&family=JetBrains+Mono:wght@400;500&display=swap" rel="stylesheet">
+  
+  <!-- Leaflet CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet@1.9.4/dist/leaflet.css" integrity="sha256-p4NxAoJBhIIN+hmNHrzRCf9tD/miZyoHS5obTRR9BMY=" crossorigin=""/>
+  <!-- Leaflet Marker Cluster CSS -->
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.css" />
+  <link rel="stylesheet" href="https://unpkg.com/leaflet.markercluster@1.4.1/dist/MarkerCluster.Default.css" />
+  
+  <!-- Custom CSS -->
+  <link rel="stylesheet" href="style.css">
+</head>
+<body>
+  <div class="app-container">
+    <!-- Sidebar -->
+    <aside class="sidebar">
+      <div class="sidebar-header">
+        <div class="logo">
+          <span class="logo-icon">✈</span>
+          <h1>AeroPulse</h1>
+        </div>
+        <p class="tagline">NoSQL Database Explorer</p>
+      </div>
+
+      <!-- Dashboard Sections -->
+      <div class="sidebar-content">
+        
+        <!-- Action Control -->
+        <section class="section-card actions-card">
+          <button id="btn-add-airport" class="btn btn-primary btn-block">
+            <span>+</span> Nuevo Aeropuerto
+          </button>
+        </section>
+
+        <!-- Nearby Search Form -->
+        <section class="section-card">
+          <div class="section-title">
+            <h3>🔍 Búsqueda Cercana</h3>
+            <span id="nearby-mode-badge" class="badge">Inactivo</span>
+          </div>
+          <div class="form-group">
+            <label for="search-radius">Radio: <span id="radius-val">200</span> km</label>
+            <input type="range" id="search-radius" min="50" max="2000" step="50" value="200">
+          </div>
+          <div class="info-text">
+            Haz clic en el mapa para buscar aeropuertos cercanos dentro del radio.
+          </div>
+          <div id="nearby-results-container" class="results-list hidden">
+            <h4>Resultados Cercanos:</h4>
+            <ul id="nearby-results-list">
+              <!-- Dynamically populated -->
+            </ul>
+            <button id="btn-clear-nearby" class="btn btn-secondary btn-small btn-block">Limpiar Búsqueda</button>
+          </div>
+        </section>
+
+        <!-- Popularity Ranking -->
+        <section class="section-card">
+          <div class="section-title">
+            <h3>🔥 Aeropuertos Populares</h3>
+            <button id="btn-refresh-pop" class="btn btn-icon" title="Refrescar ranking">🔄</button>
+          </div>
+          <div class="popular-ranking-container">
+            <ol id="popularity-list" class="popular-list">
+              <!-- Dynamically populated -->
+              <div class="loading-spinner-small">Cargando ranking...</div>
+            </ol>
+          </div>
+        </section>
+        
+      </div>
+    </aside>
+
+    <!-- Map container -->
+    <main id="map" class="map-container"></main>
+  </div>
+
+  <!-- Create/Edit Modal -->
+  <div id="airport-modal" class="modal hidden">
+    <div class="modal-overlay"></div>
+    <div class="modal-content">
+      <div class="modal-header">
+        <h3 id="modal-title">Agregar Aeropuerto</h3>
+        <button id="btn-close-modal" class="btn-close">&times;</button>
+      </div>
+      <form id="airport-form">
+        <div class="form-grid">
+          <div class="form-group">
+            <label for="form-iata">Código IATA *</label>
+            <input type="text" id="form-iata" required maxlength="3" placeholder="Ej: EZE" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group">
+            <label for="form-icao">Código ICAO</label>
+            <input type="text" id="form-icao" maxlength="4" placeholder="Ej: SAEZ" style="text-transform: uppercase;">
+          </div>
+          <div class="form-group col-span-2">
+            <label for="form-name">Nombre *</label>
+            <input type="text" id="form-name" required placeholder="Ej: Ministro Pistarini Intl">
+          </div>
+          <div class="form-group col-span-2">
+            <label for="form-city">Ciudad / País</label>
+            <input type="text" id="form-city" placeholder="Ej: Buenos Aires, Argentina">
+          </div>
+          <div class="form-group">
+            <label for="form-lat">Latitud *</label>
+            <input type="number" id="form-lat" required step="any" min="-90" max="90" placeholder="-34.8222">
+          </div>
+          <div class="form-group">
+            <label for="form-lng">Longitud *</label>
+            <input type="number" id="form-lng" required step="any" min="-180" max="180" placeholder="-58.5358">
+          </div>
+          <div class="form-group">
+            <label for="form-alt">Altitud (pies)</label>
+            <input type="number" id="form-alt" placeholder="67">
+          </div>
+          <div class="form-group">
+            <label for="form-tz">Zona Horaria (TZ)</label>
+            <input type="text" id="form-tz" placeholder="America/Argentina/Buenos_Aires">
+          </div>
+        </div>
+        <div class="modal-actions">
+          <button type="button" id="btn-cancel-modal" class="btn btn-secondary">Cancelar</button>
+          <button type="submit" class="btn btn-primary">Guardar</button>
+        </div>
+      </form>
+    </div>
+  </div>
+
+  <!-- Toast Notifications Container -->
+  <div id="toast-container" class="toast-container"></div>
+
+  <!-- Leaflet JS -->
+  <script src="https://unpkg.com/leaflet@1.9.4/dist/leaflet.js" integrity="sha256-20nQCchB9co0qIjJZRGuk2/Z9VM+kNiyxNV1lvTlZBo=" crossorigin=""></script>
+  <!-- Leaflet Marker Cluster JS -->
+  <script src="https://unpkg.com/leaflet.markercluster@1.4.1/dist/leaflet.markercluster.js"></script>
+  
+  <!-- Custom JS -->
+  <script src="app.js"></script>
+</body>
+</html>

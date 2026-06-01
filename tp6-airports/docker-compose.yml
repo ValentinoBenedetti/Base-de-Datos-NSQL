@@ -1,0 +1,84 @@
+version: '3.8'
+
+services:
+  # MongoDB - Main storage for airport data
+  mongo:
+    image: mongo:7.0
+    container_name: mongo-airports
+    restart: always
+    ports:
+      - "27017:27017"
+    volumes:
+      - mongo_data:/data/db
+    networks:
+      - airport-network
+
+  # Redis GEO - Coordinates indexing for proximity calculations
+  redis-geo:
+    image: redis:7-alpine
+    container_name: redis-geo
+    restart: always
+    ports:
+      - "6379:6379"
+    volumes:
+      - redis_geo_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    networks:
+      - airport-network
+
+  # Redis Popularity - ZSET for view counts
+  redis-pop:
+    image: redis:7-alpine
+    container_name: redis-pop
+    restart: always
+    ports:
+      - "6380:6379" # Map port 6380 on host to 6379 inside container
+    volumes:
+      - redis_pop_data:/data
+    command: redis-server --save 60 1 --loglevel warning
+    networks:
+      - airport-network
+
+  # Node.js API Backend & Initial Importer
+  backend:
+    build:
+      context: ./backend
+      dockerfile: Dockerfile
+    container_name: backend-airports
+    restart: always
+    ports:
+      - "3000:3000"
+    environment:
+      - PORT=3000
+      - MONGO_URI=mongodb://mongo:27017/airport_db
+      - REDIS_GEO_URL=redis://redis-geo:6379
+      - REDIS_POP_URL=redis://redis-pop:6379
+    depends_on:
+      - mongo
+      - redis-geo
+      - redis-pop
+    networks:
+      - airport-network
+
+  # Nginx Web Frontend & API Reverse Proxy
+  frontend:
+    build:
+      context: ./frontend
+      dockerfile: Dockerfile
+    container_name: frontend-airports
+    restart: always
+    ports:
+      - "8080:80"
+    depends_on:
+      - backend
+    networks:
+      - airport-network
+
+volumes:
+  mongo_data:
+  redis_geo_data:
+  redis_pop_data:
+
+networks:
+  airport-network:
+    driver: bridge
